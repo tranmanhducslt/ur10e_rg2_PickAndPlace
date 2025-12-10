@@ -11,6 +11,19 @@ using Unity.Robotics.ROSTCPConnector;
 using Unity.Robotics.ROSTCPConnector.ROSGeometry;
 using UnityEngine;
 
+// =========================================================================
+// 1. Serializable Custom Class to hold the GameObject and its ID
+// =========================================================================
+[System.Serializable]
+public class Obstacle
+{
+    // The Unity GameObject to be published
+    public GameObject GameObject;
+    // The unique string ID for the CollisionObjectMsg (e.g., "table", "printer", "cup")
+    public string CollisionId; 
+}
+
+
 public class TrajectoryPlanner : MonoBehaviour
 {
     // Hardcoded variables
@@ -34,12 +47,13 @@ public class TrajectoryPlanner : MonoBehaviour
     [SerializeField]
     GameObject m_TargetPlacement;
     public GameObject TargetPlacement { get => m_TargetPlacement; set => m_TargetPlacement = value; }
+
+    // =========================================================================
+    // 2. NEW: List for all obstacles (Table, Printer, etc.)
+    // Removed old fields: m_Table and m_Printer
+    // =========================================================================
     [SerializeField]
-    GameObject m_Table;
-    public GameObject Table { get => m_Table; set => m_Table = value; }
-    [SerializeField]
-    GameObject m_Printer;
-    public GameObject Printer { get => m_Printer; set => m_Printer = value; }
+    public List<Obstacle> m_ObstaclesToPublish = new List<Obstacle>();
 
 
     // Assures that the gripper is always positioned beside the m_Target cube before grasping.
@@ -63,8 +77,8 @@ public class TrajectoryPlanner : MonoBehaviour
     ROSConnection m_Ros;
 
     /// <summary>
-    ///     Find all robot joints in Awake() and add them to the jointArticulationBodies array.
-    ///     Find left and right finger joints and assign them to their respective articulation body objects.
+    ///       Find all robot joints in Awake() and add them to the jointArticulationBodies array.
+    ///       Find left and right finger joints and assign them to their respective articulation body objects.
     /// </summary>
     void Start()
     {
@@ -99,7 +113,7 @@ public class TrajectoryPlanner : MonoBehaviour
     }
 
     /// <summary>
-    ///     Close the gripper
+    ///       Close the gripper
     /// </summary>
     void CloseGripper()
     {
@@ -109,7 +123,7 @@ public class TrajectoryPlanner : MonoBehaviour
     }
 
     /// <summary>
-    ///     Open the gripper
+    ///       Open the gripper
     /// </summary>
     void OpenGripper()
     {
@@ -119,7 +133,7 @@ public class TrajectoryPlanner : MonoBehaviour
     }
 
     /// <summary>
-    ///     Get the current values of the robot's joint angles.
+    ///       Get the current values of the robot's joint angles.
     /// </summary>
     /// <returns>Ur10eMoveitJoints</returns>
     Ur10eMoveitJointsMsg CurrentJointConfig()
@@ -135,18 +149,25 @@ public class TrajectoryPlanner : MonoBehaviour
     }
 
     /// <summary>
-    ///     Create a new MoverServiceRequest with the current values of the robot's joint angles,
-    ///     the target cube's current position and rotation, and the targetPlacement position and rotation.
-    ///     Call the MoverService using the ROSConnection and if a trajectory is successfully planned,
-    ///     execute the trajectories in a coroutine.
+    ///       Create a new MoverServiceRequest with the current values of the robot's joint angles,
+    ///       the target cube's current position and rotation, and the targetPlacement position and rotation.
+    ///       Call the MoverService using the ROSConnection and if a trajectory is successfully planned,
+    ///       execute the trajectories in a coroutine.
     /// </summary>
     public void PublishJoints()
     {
-        // Publish the table mesh at the start
-        PublishTableMesh();
-        // Publish the printer mesh at the start
-        PublishPrinterMesh();
-
+        // =========================================================================
+        // 4. NEW: Loop through all obstacles and publish their mesh data
+        // Replaced PublishTableMesh() and PublishPrinterMesh() calls
+        // =========================================================================
+        foreach (Obstacle obs in m_ObstaclesToPublish)
+        {
+            if (obs.GameObject != null)
+            {
+                PublishObstacleMesh(obs.GameObject, obs.CollisionId);
+            }
+        }
+        
         var request = new MoverServiceRequest();
         request.joints_input = CurrentJointConfig();
 
@@ -181,16 +202,8 @@ public class TrajectoryPlanner : MonoBehaviour
     }
 
     /// <summary>
-    ///     Execute the returned trajectories from the MoverService.
-    ///     The expectation is that the MoverService will return four trajectory plans,
-    ///     PreGrasp, Grasp, PickUp, and Place,
-    ///     where each plan is an array of robot poses. A robot pose is the joint angle values
-    ///     of the six robot joints.
-    ///     Executing a single trajectory will iterate through every robot pose in the array while updating the
-    ///     joint values on the robot.
+    ///       Execute the returned trajectories from the MoverService. (omitted for brevity)
     /// </summary>
-    /// <param name="response"> MoverServiceResponse received from ur10e_rg2_moveit mover service running in ROS</param>
-    /// <returns></returns>
     IEnumerator ExecuteTrajectories(MoverServiceResponse response)
     {
         if (response.trajectories != null)
@@ -238,14 +251,23 @@ public class TrajectoryPlanner : MonoBehaviour
         PickUp,
         Place
     }
-
-    void PublishTableMesh()
+    
+    // =========================================================================
+    // 3. NEW: Generic function to replace PublishTableMesh() and PublishPrinterMesh()
+    // The old PublishTableMesh() and PublishPrinterMesh() functions are removed.
+    // =========================================================================
+    /// <summary>
+    /// Publishes the mesh of a given GameObject as a MoveIt! Collision Object.
+    /// </summary>
+    /// <param name="obstacleGameObject">The Unity GameObject representing the obstacle.</param>
+    /// <param name="collisionObjectId">The unique ID for the collision object (e.g., "table", "printer").</param>
+    void PublishObstacleMesh(GameObject obstacleGameObject, string collisionObjectId)
     {
-        // Get the MeshFilter component from the Table GameObject
-        MeshFilter meshFilter = m_Table.GetComponent<MeshFilter>();
+        // Get the MeshFilter component
+        MeshFilter meshFilter = obstacleGameObject.GetComponent<MeshFilter>();
         if (meshFilter == null)
         {
-            Debug.LogError("MeshFilter component not found on Table GameObject.");
+            Debug.LogError($"MeshFilter component not found on {collisionObjectId} GameObject.");
             return;
         }
 
@@ -257,7 +279,7 @@ public class TrajectoryPlanner : MonoBehaviour
         // Validate mesh data
         if (vertices == null || vertices.Length == 0 || triangles == null || triangles.Length == 0)
         {
-            Debug.LogError("Mesh data is invalid or empty.");
+            Debug.LogError($"Mesh data for {collisionObjectId} is invalid or empty.");
             return;
         }
 
@@ -265,8 +287,8 @@ public class TrajectoryPlanner : MonoBehaviour
         List<PointMsg> points = new List<PointMsg>();
         foreach (Vector3 vertex in vertices)
         {
-            // Convert vertex to FLU orientation and add to points list
-            var fluVertex = m_Table.transform.TransformPoint(vertex).To<FLU>();
+            // Convert vertex to world space, then to FLU orientation and add to points list
+            var fluVertex = obstacleGameObject.transform.TransformPoint(vertex).To<FLU>();
             points.Add(new PointMsg(fluVertex.x, fluVertex.y, fluVertex.z));
         }
 
@@ -278,7 +300,7 @@ public class TrajectoryPlanner : MonoBehaviour
                 vertex_indices = new uint[]
                 {
                     (uint)triangles[i],
-                    (uint)triangles[i + 2], // Swap these two indices
+                    (uint)triangles[i + 2], // Swap these two indices for winding order correction
                     (uint)triangles[i + 1]
                 }
             });
@@ -292,91 +314,10 @@ public class TrajectoryPlanner : MonoBehaviour
             triangles = triangleMsgs.ToArray()
         };
 
-        // Get the table's position and rotation in FLU
-        PoseMsg tablePose = new PoseMsg
+        // PoseMsg: The mesh is published relative to the base_link frame at (0, 0, 0)
+        PoseMsg pose = new PoseMsg
         {
-            // Set the position of the object to the origin (0, 0, 0) in the base_link frame
             position = new PointMsg(0.0, 0.0, 0.0),
-
-            // Set the orientation of the object to no rotation (identity quaternion) in the base_link frame
-            orientation = new QuaternionMsg(0.0, 0.0, 0.0, 1.0)
-
-        };
-
-        // Create CollisionObjectMsg
-        var collisionObject = new CollisionObjectMsg
-        {
-            header = new HeaderMsg
-            {
-                frame_id = "base_link"
-            },
-            id = "table",
-            operation = CollisionObjectMsg.ADD,
-            mesh_poses = new PoseMsg[] { tablePose },
-            meshes = new MeshMsg[] { meshMsg }
-        };
-
-        // Publish the CollisionObjectMsg
-        m_Ros.Publish("/collision_object", collisionObject);
-    }
-
-    void PublishPrinterMesh()
-    {
-        // Get the MeshFilter component from the 3D Printer GameObject
-        MeshFilter meshFilter = m_Printer.GetComponent<MeshFilter>();
-        if (meshFilter == null)
-        {
-            Debug.LogError("MeshFilter component not found on 3D Printer GameObject.");
-            return;
-        }
-
-        // Retrieve the mesh, vertices, and triangles data
-        Mesh mesh = meshFilter.mesh;
-        Vector3[] vertices = mesh.vertices;
-        int[] triangles = mesh.triangles;
-
-        // Validate mesh data
-        if (vertices == null || vertices.Length == 0 || triangles == null || triangles.Length == 0)
-        {
-            Debug.LogError("Mesh data is invalid or empty.");
-            return;
-        }
-        // Prepare vertices and triangles for ROS messages
-        List<PointMsg> points = new List<PointMsg>();
-        foreach (Vector3 vertex in vertices)
-        {
-            // Convert vertex to FLU orientation and add to points list
-            var fluVertex = m_Printer.transform.TransformPoint(vertex).To<FLU>();
-            points.Add(new PointMsg(fluVertex.x, fluVertex.y, fluVertex.z));
-        }
-
-        List<MeshTriangleMsg> triangleMsgs = new List<MeshTriangleMsg>();
-        for (int i = 0; i < triangles.Length; i += 3)
-        {
-            triangleMsgs.Add(new MeshTriangleMsg
-            {
-                vertex_indices = new uint[]
-                {
-                    (uint)triangles[i],
-                    (uint)triangles[i + 2], // Swap these two indices
-                    (uint)triangles[i + 1]
-                }
-            });
-        }
-
-        // Create MeshMsg
-        MeshMsg meshMsg = new MeshMsg
-        {
-            vertices = points.ToArray(),
-            triangles = triangleMsgs.ToArray()
-        };
-        
-        PoseMsg printerPose = new PoseMsg
-        {
-            // Set the position of the object to the origin (0, 0, 0) in the base_link frame
-            position = new PointMsg(0.0, 0.0, 0.0),
-
-            // Set the orientation of the object to no rotation (identity quaternion) in the base_link frame
             orientation = new QuaternionMsg(0.0, 0.0, 0.0, 1.0)
         };
 
@@ -387,9 +328,9 @@ public class TrajectoryPlanner : MonoBehaviour
             {
                 frame_id = "base_link"
             },
-            id = "3d_printer",
+            id = collisionObjectId, // <--- Dynamic ID
             operation = CollisionObjectMsg.ADD,
-            mesh_poses = new PoseMsg[] { printerPose },
+            mesh_poses = new PoseMsg[] { pose },
             meshes = new MeshMsg[] { meshMsg }
         };
 
