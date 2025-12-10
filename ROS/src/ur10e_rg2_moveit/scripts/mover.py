@@ -42,6 +42,8 @@ def plan_trajectory(move_group, destination_pose, start_joint_angles):
     move_group.set_start_state(moveit_robot_state)
 
     move_group.set_pose_target(destination_pose)
+    # Grace time to plan
+    move_group.set_planning_time(30)
     plan = move_group.plan()
 
     if not plan:
