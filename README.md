@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is a part of a module at [Vietnamese-German University](https://vgu.edu.vn/), instructed by Dr.-Ing. Quang Huan Dong (huan.dq@vgu.edu.vn). The goal of this project is to adapt the pick and place tutorial from the [Unity Robotics Hub](https://github.com/Unity-Technologies/Unity-Robotics-Hub/tree/main/tutorials/pick_and_place) for the UR10e robot arm integrated with the OnRobot RG2 gripper. The objective is to automate the process of picking an object from inside a 3D printer and placing it at a desired location in a simulated environment using Unity. The project utilizes the Stochastic Trajectory Optimization for Motion Planning (STOMP) planner for motion planning.
+This project is a part of a module at Vietnamese-German University, instructed by Dr.-Ing. Quang Huan Dong (huan.dq@vgu.edu.vn). It is basically a fix of a repository of the same name by a former student to control a UR10e robot arm integrated with the OnRobot RG2 gripper so that obstacles can be recognised and avoided during trajectory planning, facilitating the movement of objects to desired locations. The code is taken reference from a repository from [Unity Robotics Hub](https://github.com/Unity-Technologies/Unity-Robotics-Hub/tree/main/tutorials/pick_and_place).
 
 ## Table of Contents
 
@@ -22,7 +22,12 @@ To set up this project, follow these steps:
 
 ### Prerequisites
 
-Ensure you have the following software installed:
+To avoid compability issues, an installation of Ubuntu 20.04 (or any flavour of which) should be installed on the hard drive of the target device, instead of a virtual machine. Below are some possible flavours:
+- [Ubuntu](https://releases.ubuntu.com/focal/)
+- [Kubuntu](https://cdimage.ubuntu.com/kubuntu/releases/focal/release/)
+- [Xubuntu](https://cdimage.ubuntu.com/kubuntu/releases/focal/release/)
+
+Inside the operating system, the following programs are to be installed:
 
 - [ROS Noetic](https://wiki.ros.org/noetic/Installation/Ubuntu)
 - [MoveIt](https://moveit.github.io/moveit_tutorials/doc/getting_started/getting_started.html) 
@@ -34,7 +39,7 @@ Ensure you have the following software installed:
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/Trung2204/ur10e_rg2_PickAndPlace.git
+git clone https://github.com/tranmanhducslt/ur10e_rg2_PickAndPlace.git
 cd ur10e_rg2_PickAndPlace
 ```
 
