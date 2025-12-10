@@ -12,7 +12,7 @@ using Unity.Robotics.ROSTCPConnector.ROSGeometry;
 using UnityEngine;
 
 // =========================================================================
-// 1. Serializable Custom Class to hold the GameObject and its ID
+// 1. Serialisable Custom Class to hold the GameObject and its ID
 // =========================================================================
 [System.Serializable]
 public class Obstacle
@@ -112,9 +112,6 @@ public class TrajectoryPlanner : MonoBehaviour
         }
     }
 
-    /// <summary>
-    ///       Close the gripper
-    /// </summary>
     void CloseGripper()
     {
         float closeValue = 24f;
@@ -122,9 +119,6 @@ public class TrajectoryPlanner : MonoBehaviour
         SetGripperPosition(closeValue);
     }
 
-    /// <summary>
-    ///       Open the gripper
-    /// </summary>
     void OpenGripper()
     {
         float openValue = 10f;
