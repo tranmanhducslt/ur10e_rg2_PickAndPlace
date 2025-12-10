@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is a part of a module at Vietnamese-German University, instructed by Dr.-Ing. Quang Huan Dong (huan.dq@vgu.edu.vn). It is basically a fix of a repository of the same name by a former student to control a UR10e robot arm integrated with the OnRobot RG2 gripper so that obstacles can be recognised and avoided during trajectory planning, facilitating the movement of objects to desired locations. The code is taken reference from a repository from [Unity Robotics Hub](https://github.com/Unity-Technologies/Unity-Robotics-Hub/tree/main/tutorials/pick_and_place).
+This project is a part of a module at Vietnamese-German University, instructed by Dr.-Ing. Quang Huan Dong (huan.dq@vgu.edu.vn). It is basically a fix of a repository of the same name by a former student to control a UR10e robot arm integrated with the OnRobot RG2 gripper so that obstacles can be recognised and avoided during trajectory planning, facilitating the movement of objects to desired locations. The code is taken reference from a repository by the [Unity Robotics Hub](https://github.com/Unity-Technologies/Unity-Robotics-Hub/tree/main/tutorials/pick_and_place).
 
 ## Table of Contents
 
@@ -23,9 +23,9 @@ To set up this project, follow these steps:
 ### Prerequisites
 
 To avoid compability issues, an installation of Ubuntu 20.04 (or any flavour of which) should be installed on the hard drive of the target device, instead of a virtual machine. Below are some possible flavours:
-- [Ubuntu](https://releases.ubuntu.com/focal/)
-- [Kubuntu](https://cdimage.ubuntu.com/kubuntu/releases/focal/release/)
-- [Xubuntu](https://cdimage.ubuntu.com/kubuntu/releases/focal/release/)
+- [Ubuntu 20.04](https://releases.ubuntu.com/focal/)
+- [Kubuntu 20.04](https://cdimage.ubuntu.com/kubuntu/releases/focal/release/)
+- [Xubuntu 20.04](https://cdimage.ubuntu.com/kubuntu/releases/focal/release/)
 
 Inside the operating system, the following programs are to be installed:
 
