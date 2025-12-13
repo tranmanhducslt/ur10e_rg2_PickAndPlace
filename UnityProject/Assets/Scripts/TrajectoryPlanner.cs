@@ -49,8 +49,7 @@ public class TrajectoryPlanner : MonoBehaviour
     public GameObject TargetPlacement { get => m_TargetPlacement; set => m_TargetPlacement = value; }
 
     // =========================================================================
-    // 2. NEW: List for all obstacles (Table, Printer, etc.)
-    // Removed old fields: m_Table and m_Printer
+    // 2. List for all obstacles (Table, Printer, Moving Cube, etc.)
     // =========================================================================
     [SerializeField]
     public List<Obstacle> m_ObstaclesToPublish = new List<Obstacle>();
@@ -77,8 +76,7 @@ public class TrajectoryPlanner : MonoBehaviour
     ROSConnection m_Ros;
 
     /// <summary>
-    ///       Find all robot joints in Awake() and add them to the jointArticulationBodies array.
-    ///       Find left and right finger joints and assign them to their respective articulation body objects.
+    /// Find all robot joints and gripper parts in Start().
     /// </summary>
     void Start()
     {
@@ -112,22 +110,47 @@ public class TrajectoryPlanner : MonoBehaviour
         }
     }
 
+    // =========================================================================
+    // MODIFICATION 1: Continuous publishing for dynamic obstacle avoidance
+    // =========================================================================
+    void FixedUpdate()
+    {
+        // Publish the current positions of all obstacles (static or moving) 
+        // at a fixed rate, ensuring MoveIt! always has the latest position
+        // for planning and self-collision checking.
+        PublishAllObstacles();
+    }
+
+    /// <summary>
+    /// Loops through all obstacles and publishes their current mesh data and world pose.
+    /// This function is called continuously in FixedUpdate().
+    /// </summary>
+    void PublishAllObstacles()
+    {
+        foreach (Obstacle obs in m_ObstaclesToPublish)
+        {
+            if (obs.GameObject != null)
+            {
+                PublishObstacleMesh(obs.GameObject, obs.CollisionId);
+            }
+        }
+    }
+
+
     void CloseGripper()
     {
-        float closeValue = 24f;
-
+        float closeValue = 36f;
         SetGripperPosition(closeValue);
     }
 
     void OpenGripper()
     {
-        float openValue = 10f;
-
+        float openValue = 12f;
         SetGripperPosition(openValue);
     }
 
     /// <summary>
-    ///       Get the current values of the robot's joint angles.
+    /// Get the current values of the robot's joint angles.
     /// </summary>
     /// <returns>Ur10eMoveitJoints</returns>
     Ur10eMoveitJointsMsg CurrentJointConfig()
@@ -143,24 +166,14 @@ public class TrajectoryPlanner : MonoBehaviour
     }
 
     /// <summary>
-    ///       Create a new MoverServiceRequest with the current values of the robot's joint angles,
-    ///       the target cube's current position and rotation, and the targetPlacement position and rotation.
-    ///       Call the MoverService using the ROSConnection and if a trajectory is successfully planned,
-    ///       execute the trajectories in a coroutine.
+    /// Create a new MoverServiceRequest and call the MoverService.
     /// </summary>
     public void PublishJoints()
     {
         // =========================================================================
-        // 4. NEW: Loop through all obstacles and publish their mesh data
-        // Replaced PublishTableMesh() and PublishPrinterMesh() calls
+        // MODIFICATION 2: Removed obstacle publishing from here. 
+        // Obstacles are now published continuously in FixedUpdate().
         // =========================================================================
-        foreach (Obstacle obs in m_ObstaclesToPublish)
-        {
-            if (obs.GameObject != null)
-            {
-                PublishObstacleMesh(obs.GameObject, obs.CollisionId);
-            }
-        }
         
         var request = new MoverServiceRequest();
         request.joints_input = CurrentJointConfig();
@@ -196,7 +209,7 @@ public class TrajectoryPlanner : MonoBehaviour
     }
 
     /// <summary>
-    ///       Execute the returned trajectories from the MoverService. (omitted for brevity)
+    /// Execute the returned trajectories from the MoverService.
     /// </summary>
     IEnumerator ExecuteTrajectories(MoverServiceResponse response)
     {
@@ -246,15 +259,11 @@ public class TrajectoryPlanner : MonoBehaviour
         Place
     }
     
-    // =========================================================================
-    // 3. NEW: Generic function to replace PublishTableMesh() and PublishPrinterMesh()
-    // The old PublishTableMesh() and PublishPrinterMesh() functions are removed.
-    // =========================================================================
     /// <summary>
     /// Publishes the mesh of a given GameObject as a MoveIt! Collision Object.
+    /// By transforming the vertices to world space, this function works for 
+    /// both static and moving objects when called repeatedly.
     /// </summary>
-    /// <param name="obstacleGameObject">The Unity GameObject representing the obstacle.</param>
-    /// <param name="collisionObjectId">The unique ID for the collision object (e.g., "table", "printer").</param>
     void PublishObstacleMesh(GameObject obstacleGameObject, string collisionObjectId)
     {
         // Get the MeshFilter component
@@ -281,7 +290,7 @@ public class TrajectoryPlanner : MonoBehaviour
         List<PointMsg> points = new List<PointMsg>();
         foreach (Vector3 vertex in vertices)
         {
-            // Convert vertex to world space, then to FLU orientation and add to points list
+            // Convert local vertex to WORLD space, then to FLU orientation
             var fluVertex = obstacleGameObject.transform.TransformPoint(vertex).To<FLU>();
             points.Add(new PointMsg(fluVertex.x, fluVertex.y, fluVertex.z));
         }
@@ -308,7 +317,8 @@ public class TrajectoryPlanner : MonoBehaviour
             triangles = triangleMsgs.ToArray()
         };
 
-        // PoseMsg: The mesh is published relative to the base_link frame at (0, 0, 0)
+        // PoseMsg: Since the vertices were converted to world space (relative to the base_link frame),
+        // the PoseMsg must be the identity (0, 0, 0) relative to 'base_link'.
         PoseMsg pose = new PoseMsg
         {
             position = new PointMsg(0.0, 0.0, 0.0),
@@ -322,13 +332,13 @@ public class TrajectoryPlanner : MonoBehaviour
             {
                 frame_id = "base_link"
             },
-            id = collisionObjectId, // <--- Dynamic ID
-            operation = CollisionObjectMsg.ADD,
+            id = collisionObjectId, 
+            operation = CollisionObjectMsg.ADD, // ADD operation updates the object if it already exists
             mesh_poses = new PoseMsg[] { pose },
             meshes = new MeshMsg[] { meshMsg }
         };
 
-        // Publish the CollisionObjectMsg
+        // Publish the CollisionObjectMsg (this happens every FixedUpdate)
         m_Ros.Publish("/collision_object", collisionObject);
     }
 
@@ -358,5 +368,4 @@ public class TrajectoryPlanner : MonoBehaviour
         drive.target = position;
         m_rightInnerFinger.xDrive = drive;
     }
-
 }
